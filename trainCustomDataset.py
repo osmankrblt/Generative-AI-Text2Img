@@ -14,6 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# Changes:
+# 2024-07-03: Code modified to run internally instead of through terminal by removing parsers and adding global variables.
+# 2024-07-03: Code adapted to fit the dataset by using Pytorch dataset class and removing Huggingface dataset.
+
+# Original version of codes
+# https://github.com/huggingface/diffusers/blob/main/examples/text_to_image/train_text_to_image.py
+
+
 import logging
 import math
 import os
@@ -53,7 +62,7 @@ from diffusers.utils.torch_utils import is_compiled_module
 from PIL import Image
 import pandas as pd
 
-
+## Argparse removed and added global variables
 ADAM_BETA1 = 0.9
 ADAM_BETA2 = 0.999
 ADAM_EPSILON = 1e-08
@@ -95,19 +104,35 @@ PREDICTION_TYPE = "epsilon"
 PRETRAINED_MODEL_NAME_OR_PATH = "stabilityai/stable-diffusion-2"
 RANDOM_FLIP = True
 REPORT_TO = "wandb"
-RESUME_FROM_CHECKPOINT = "sd-model-finetuned/checkpoint-1000"
+RESUME_FROM_CHECKPOINT = "sd-model-finetuned/checkpoint-12000"
 RESOLUTION = 256
 REVISION = None
-SCALE_LR = False
-SEED = None
+SCALE_LR = True
+SEED = 16
 SNR_GAMMA = None
-TRAIN_BATCH_SIZE = 4
+TRAIN_BATCH_SIZE = 8
 TRAIN_DATA_DIR = "./Datasets/Russian Paintings"
 TRACKER_PROJECT_NAME = "text2image-fine-tune"
 USE_8BIT_ADAM = True
 USE_EMA = True
 VALIDATION_EPOCHS = 1
-VALIDATION_PROMPTS = ["Isaac Ilyich Levittan woman playing snowman","Vasily Ivanovich Surikov soldier ride a bicycle"]
+VALIDATION_PROMPTS = [
+                      "Isaac Ilyich Levittan woman playing snowman",
+                      "Vasily Ivanovich Surikov soldier ride a bicycle", 
+                      "Petrov-Vodkin Kuzma Sergeyevich a painting of a river with a boat in the water",
+                      "Vasily Ivanovich Surikov a painting of a woman in a blue jacket",
+                      "Vasily Ivanovich Surikov three apples and two pears on a red background"
+                      ]
+VALIDATION_PROMPTS = [
+                      "a woman playing with snowman",
+                      "a man playing with dog",
+                      "a soldier ride a bicycle", 
+                      "a painting of a river with a boat in the water",
+                      "painting of a woman in a blue jacket",
+                      "three apples and two pears on a red background",
+                      "a painting of a man and woman in a room",
+                      "a painting of a man in a car",
+                      ]
 VARIANT = None
 
 TRACKER_CONFIG = {
@@ -163,7 +188,11 @@ TRACKER_CONFIG = {
     "VALIDATION_PROMPTS": VALIDATION_PROMPTS,
     "VARIANT": VARIANT
 }
+
+### START OF NEW DATASET LOADER ### I added Pytorch dataset codes instead of  Huggingface dataset 
+
 from torch.utils.data import Dataset, DataLoader
+
 class CustomDataset(Dataset):
     def __init__(self, dataframe, transform=None):
         self.dataframe = dataframe
@@ -176,6 +205,7 @@ class CustomDataset(Dataset):
         row = self.dataframe.iloc[idx]
         text = f"{row['eng_author']} {row['gpt_description']}"
         text = f"{row['gpt_description']}"
+        
         image_path = os.path.join("./Datasets/Russian Paintings", row['filename'])
         image = Image.open(image_path)
         
@@ -187,6 +217,8 @@ class CustomDataset(Dataset):
 csv_file = "./Datasets/Russian Paintings/description.csv"
 df = pd.read_csv(csv_file)
 dataset = CustomDataset(df, )
+
+### END OF NEW DATASET LOADER ###
 
 if is_wandb_available():
     import wandb
@@ -292,7 +324,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight
     pipeline.set_progress_bar_config(disable=True)
 
     if ENABLE_XFORMERS_MEMORY_EFFICIENT_ATTENTION:
-        pipeline.ENABLE_XFORMERS_MEMORY_EFFICIENT_ATTENTION()
+        pipeline.enable_xformers_memory_efficient_attention()
 
     if SEED is None:
         generator = None
@@ -903,12 +935,12 @@ def main():
             pipeline.set_progress_bar_config(disable=True)
 
             if ENABLE_XFORMERS_MEMORY_EFFICIENT_ATTENTION:
-                pipeline.ENABLE_XFORMERS_MEMORY_EFFICIENT_ATTENTION()
+                pipeline.enable_xformers_memory_efficient_attention()
 
             if SEED is None:
                 generator = None
             else:
-                generator = torch.Generator(device=accelerator.device).manual_SEED(SEED)
+                generator = torch.Generator(device=accelerator.device).manual_seed(SEED)
 
             for i in range(len(VALIDATION_PROMPTS)):
                 with torch.autocast("cuda"):

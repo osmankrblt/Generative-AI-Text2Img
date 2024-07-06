@@ -62,19 +62,22 @@ from diffusers.utils.torch_utils import is_compiled_module
 from PIL import Image
 import pandas as pd
 
+
+csv_file = "./Datasets/Russian Paintings/description.csv"
+df = pd.read_csv(csv_file)
+
+DATASET_LENGTH = len(df)
+
 ## Argparse removed and added global variables
 ADAM_BETA1 = 0.9
 ADAM_BETA2 = 0.999
 ADAM_EPSILON = 1e-08
 ADAM_WEIGHT_DECAY = 1e-2
-ACCELERATOR_PROJECT_CONFIG = ""
 ALLOW_TF32 = True
-BITSANDBYTES = ""
-CACHE_DIR = None
+BATCH_SIZE = 8
 CAPTION_COLUMN="gpt_description"
 CENTER_CROP = True
-CHECKPOINTING_STEPS = 2000
-CHECKPOINTS_TOTAL_LIMIT = None
+CHECKPOINTS_TOTAL_LIMIT = 3
 DATA_FILES = ""
 DATASET_CONFIG_NAME = None
 DATASET_NAME = ""
@@ -87,51 +90,54 @@ GRADIENT_ACCUMULATION_STEPS = 1
 GRADIENT_CHECKPOINTING = True
 INPUT_PERTURBATION=""
 IMAGE_COLUMN="filename"
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 0.0000032
 LOGGING_DIR = "LOGGING"
-LR_WARMUP_STEPS = 500
-LR_SCHEDULER = "constant"
+LR_WARMUP_STEPS = (DATASET_LENGTH//BATCH_SIZE)*0.1
+LR_WARMUP_STEPS = 0
+LR_SCHEDULER = "cosine_with_restarts"
 MAX_GRAD_NORM = 1.0
 MAX_TRAIN_SAMPLES = None
 MAX_TRAIN_STEPS = None
 MIXED_PRECISION = None
 NON_EMA_REVISION = None
 NOISE_OFFSET = 0
-NUM_TRAIN_EPOCHS = 100
+NUM_TRAIN_EPOCHS = 10000
 OFFLOAD_EMA = False
-OUTPUT_DIR = "sd-model-finetuned"
+OUTPUT_DIR = "stable-diffusion-2-base-bf16-dream-finetuned"
 PREDICTION_TYPE = "epsilon"
-PRETRAINED_MODEL_NAME_OR_PATH = "stabilityai/stable-diffusion-2"
+PRETRAINED_MODEL_NAME_OR_PATH = "stabilityai/stable-diffusion-2-base"
 RANDOM_FLIP = True
 REPORT_TO = "wandb"
-RESUME_FROM_CHECKPOINT = "sd-model-finetuned/checkpoint-12000"
-RESOLUTION = 256
+RESUME_FROM_CHECKPOINT = None
+RESOLUTION = 512
 REVISION = None
 SCALE_LR = True
-SEED = 16
-SNR_GAMMA = None
-TRAIN_BATCH_SIZE = 8
-TRAIN_DATA_DIR = "./Datasets/Russian Paintings"
+SEED = BATCH_SIZE*2
+SNR_GAMMA = 5.0
+TRAIN_BATCH_SIZE = BATCH_SIZE
+CHECKPOINTING_STEPS = (DATASET_LENGTH//BATCH_SIZE)*5
+TRAIN_DATA_DIR = "./Datasets/Russian Paintings/"
 TRACKER_PROJECT_NAME = "text2image-fine-tune"
 USE_8BIT_ADAM = True
 USE_EMA = True
 VALIDATION_EPOCHS = 1
-VALIDATION_PROMPTS = [
-                      "Isaac Ilyich Levittan woman playing snowman",
-                      "Vasily Ivanovich Surikov soldier ride a bicycle", 
-                      "Petrov-Vodkin Kuzma Sergeyevich a painting of a river with a boat in the water",
-                      "Vasily Ivanovich Surikov a painting of a woman in a blue jacket",
-                      "Vasily Ivanovich Surikov three apples and two pears on a red background"
-                      ]
-VALIDATION_PROMPTS = [
-                      "a woman playing with snowman",
-                      "a man playing with dog",
-                      "a soldier ride a bicycle", 
+VALIDATION_PROMPTS = ["a painting of two nude women on black background",
+                      "a drawing of two nude women on black background",
+                      "a painting of a nude man on red background",
+                      "a painting of a man standing on bridge",
+                      "a painting of a woman with long red hair wearing blue dress is on a horse",
+                      "a painting of a man playing with dog",
+                      "a painting of a dog ride a horse", 
+                      "a black and white photo of a soldier ride a horse", 
                       "a painting of a river with a boat in the water",
-                      "painting of a woman in a blue jacket",
-                      "three apples and two pears on a red background",
+                      "a painting of a woman in a blue jacket",
+                      "a painting of three apples and two pears on a red background",
+                      "a drawing of three apples and two pears on a red background",
                       "a painting of a man and woman in a room",
                       "a painting of a man in a car",
+                      "a drawing of two women sitting at a table",
+                      "a painting of the sun between two mountains and a house next to the river flowing between the mountains",
+                      
                       ]
 VARIANT = None
 
@@ -140,10 +146,10 @@ TRACKER_CONFIG = {
     "ADAM_BETA2": ADAM_BETA2,
     "ADAM_EPSILON": ADAM_EPSILON,
     "ADAM_WEIGHT_DECAY": ADAM_WEIGHT_DECAY,
-    "ACCELERATOR_PROJECT_CONFIG": ACCELERATOR_PROJECT_CONFIG,
+
     "ALLOW_TF32": ALLOW_TF32,
-    "BITSANDBYTES": BITSANDBYTES,
-    "CACHE_DIR": CACHE_DIR,
+    "BATCH_SIZE":BATCH_SIZE,
+
     "CENTER_CROP": CENTER_CROP,
     "CHECKPOINTING_STEPS": CHECKPOINTING_STEPS,
     "CHECKPOINTS_TOTAL_LIMIT": CHECKPOINTS_TOTAL_LIMIT,
@@ -191,7 +197,7 @@ TRACKER_CONFIG = {
 
 ### START OF NEW DATASET LOADER ### I added Pytorch dataset codes instead of  Huggingface dataset 
 
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 class CustomDataset(Dataset):
     def __init__(self, dataframe, transform=None):
@@ -204,18 +210,25 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         row = self.dataframe.iloc[idx]
         text = f"{row['eng_author']} {row['gpt_description']}"
-        text = f"{row['gpt_description']}"
+        text = row['gpt_description']
         
-        image_path = os.path.join("./Datasets/Russian Paintings", row['filename'])
+        image_path = os.path.join(TRAIN_DATA_DIR, row['filename'])
         image = Image.open(image_path)
-        
+        image_array = np.array(image)
+
+        # NaN değerlerini kontrol etme
+        has_nan = np.isnan(image_array).any()
+
+        if has_nan:
+            print(image_path)
+            raise ValueError("NaN value found in the image.")
+
         if self.transform:
             image = self.transform(image)
 
         return {"input_ids": text, "pixel_values": image}
 
-csv_file = "./Datasets/Russian Paintings/description.csv"
-df = pd.read_csv(csv_file)
+
 dataset = CustomDataset(df, )
 
 ### END OF NEW DATASET LOADER ###
@@ -229,10 +242,10 @@ check_min_version("0.28.0.dev0")
 
 logger = get_logger(__name__, log_level="INFO")
 
-DATASET_NAME_MAPPING = {
+""" DATASET_NAME_MAPPING = {
     "lambdalabs/naruto-blip-captions": ("image", "text"),
 }
-
+ """
 
 def save_model_card(
     args,
@@ -316,8 +329,8 @@ def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight
         tokenizer=tokenizer,
         unet=accelerator.unwrap_model(unet),
         safety_checker=None,
-        REVISION=REVISION,
-        VARIANT=VARIANT,
+        revision=REVISION,
+        variant=VARIANT,
         torch_dtype=weight_dtype,
     )
     pipeline = pipeline.to(accelerator.device)
@@ -592,12 +605,12 @@ def main():
 
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
-        [
+        [   
             transforms.Resize(RESOLUTION, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.CenterCrop(RESOLUTION) if CENTER_CROP else transforms.RandomCrop(RESOLUTION),
             transforms.RandomHorizontalFlip() if RANDOM_FLIP else transforms.Lambda(lambda x: x),
             transforms.ToTensor(),
-            transforms.Normalize([0.5], [0.5]),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ]
     )
 
@@ -661,6 +674,7 @@ def main():
 
     if USE_EMA:
         if OFFLOAD_EMA:
+            print(dir(ema_unet))
             ema_unet.pin_memory()
         else:
             ema_unet.to(accelerator.device)
@@ -668,12 +682,13 @@ def main():
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
     weight_dtype = torch.float32
+    
     if accelerator.mixed_precision == "fp16":
         weight_dtype = torch.float16
-        MIXED_PRECISION = accelerator.MIXED_PRECISION
+        MIXED_PRECISION = accelerator.mixed_precision
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
-        MIXED_PRECISION = accelerator.MIXED_PRECISION
+        MIXED_PRECISION = accelerator.mixed_precision
 
     # Move text_encode and vae to gpu and cast to weight_dtype
     text_encoder.to(accelerator.device, dtype=weight_dtype)
@@ -823,9 +838,9 @@ def main():
                     mse_loss_weights = torch.stack([snr, SNR_GAMMA * torch.ones_like(timesteps)], dim=1).min(
                         dim=1
                     )[0]
-                    if noise_scheduler.config.PREDICTION_TYPE == "epsilon":
+                    if noise_scheduler.config.prediction_type == "epsilon":
                         mse_loss_weights = mse_loss_weights / snr
-                    elif noise_scheduler.config.PREDICTION_TYPE == "v_prediction":
+                    elif noise_scheduler.config.prediction_type == "v_prediction":
                         mse_loss_weights = mse_loss_weights / (snr + 1)
 
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
@@ -855,6 +870,7 @@ def main():
                 progress_bar.update(1)
                 global_step += 1
                 accelerator.log({"train_loss": train_loss}, step=global_step)
+                accelerator.log({"lr_value": lr_scheduler.get_last_lr()[0]}, step=global_step)
                 train_loss = 0.0
 
                 if global_step % CHECKPOINTING_STEPS == 0:
@@ -921,8 +937,8 @@ def main():
             text_encoder=text_encoder,
             vae=vae,
             unet=unet,
-            REVISION=REVISION,
-            VARIANT=VARIANT,
+            revision=REVISION,
+            variant=VARIANT,
         )
         pipeline.save_pretrained(OUTPUT_DIR)
 

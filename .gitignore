@@ -1,4 +1,5 @@
 /Datasets
 /sd
-/sd-model-finetuned
+/stable-diffusion-2-finetuned
+/stable-diffusion-2-base-bf16-dream-finetuned
 /wandb

@@ -63,10 +63,64 @@ from PIL import Image
 import pandas as pd
 
 
-csv_file = "./Datasets/Russian Paintings/description.csv"
-df = pd.read_csv(csv_file)
 
-DATASET_LENGTH = len(df)
+### START OF NEW DATASET LOADER ### I added Pytorch dataset codes instead of  Huggingface dataset 
+
+from torch.utils.data import Dataset
+
+class CustomDataset(Dataset):
+    def __init__(self, datadir, transform=None):
+        self.datadir = datadir
+        self.transform = transform
+
+        self.images = []
+        self.labels = []
+        self.parts = ["train", "val", "test"]
+        self.class_names = os.listdir(self.datadir+"/train")
+
+        for part in self.parts:
+
+            classesPath = os.path.join(self.datadir, part)
+
+            for class_name in self.class_names:
+
+                classPath = os.path.join(classesPath, class_name)
+
+                for image in os.listdir(classPath):
+
+                    self.images.append(os.path.join(classPath, image))
+                    self.labels.append(class_name)
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+    
+        text = self.labels[idx]
+        
+        image_path = self.images[idx]
+        image = Image.open(image_path)
+        image_array = np.array(image)
+
+        # NaN değerlerini kontrol etme
+        has_nan = np.isnan(image_array).any()
+
+        if has_nan:
+            print(image_path)
+            raise ValueError("NaN value found in the image.")
+
+        if self.transform:
+            image = self.transform(image)
+
+        return {"input_ids": text, "pixel_values": image}
+
+
+TRAIN_DATA_DIR = "/media/hosma/CommonDisk/Mushroom Classifier/Datasets/FungiCLEF 2023V2/"
+
+dataset = CustomDataset(TRAIN_DATA_DIR)
+
+
+DATASET_LENGTH = len(dataset)
 
 ## Argparse removed and added global variables
 ADAM_BETA1 = 0.9
@@ -74,7 +128,7 @@ ADAM_BETA2 = 0.999
 ADAM_EPSILON = 1e-08
 ADAM_WEIGHT_DECAY = 1e-2
 ALLOW_TF32 = True
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 CAPTION_COLUMN="gpt_description"
 CENTER_CROP = True
 CHECKPOINTS_TOTAL_LIMIT = 3
@@ -83,7 +137,7 @@ DATASET_CONFIG_NAME = None
 DATASET_NAME = ""
 DATALOADER_NUM_WORKERS = 15
 DREAM_DETAIL_PRESERVATION = 1.0
-DREAM_TRAINING = True
+DREAM_TRAINING = False
 ENABLE_XFORMERS_MEMORY_EFFICIENT_ATTENTION = True
 FOREACH_EMA = True
 GRADIENT_ACCUMULATION_STEPS = 1
@@ -101,52 +155,31 @@ MAX_TRAIN_STEPS = None
 MIXED_PRECISION = "bf16"
 NON_EMA_REVISION = None
 NOISE_OFFSET = 0
-NUM_TRAIN_EPOCHS = 1000
+NUM_TRAIN_EPOCHS = 100
 OFFLOAD_EMA = False
-OUTPUT_DIR = "stable-diffusion-2-1-base-bf16-dream-finetuned"
-PREDICTION_TYPE = "epsilon"
+OUTPUT_DIR = "stable-diffusion-2-1-base-bf16-v_predicyion-data-augmentation-mushroom"
+PREDICTION_TYPE = "v_prediction"
 PRETRAINED_MODEL_NAME_OR_PATH = "./stabilityai/stable-diffusion-2-1-base"
 RANDOM_FLIP = True
 REPORT_TO = "wandb"
 RESUME_FROM_CHECKPOINT = "latest"
-RESOLUTION = 512
+RESOLUTION = 256
 REVISION = None
 SCALE_LR = True
 SEED = BATCH_SIZE*2
 SNR_GAMMA = 5.0
 TRAIN_BATCH_SIZE = BATCH_SIZE
-CHECKPOINTING_STEPS = (DATASET_LENGTH//BATCH_SIZE)*3
-TRAIN_DATA_DIR = "./Datasets/Russian Paintings/"
-TRACKER_PROJECT_NAME = "text2image-fine-tune"
+CHECKPOINTING_STEPS = (DATASET_LENGTH//BATCH_SIZE)*1
+TRACKER_PROJECT_NAME = "text2image-data-augmentation-mushroom"
 USE_8BIT_ADAM = True
 USE_EMA = True
 VALIDATION_EPOCHS = 1
 VALIDATION_PROMPTS = [
-                      "a painting of two nude women on black background",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of two nude women on black background",
-                      "a drawing of two nude women on black background",
-                      "a painting of a nude man on red background",
-                      "a painting of a man standing on bridge",
-                      "a painting of a woman with long red hair wearing blue dress is on a horse",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of a woman with long red hair wearing blue dress is on a horse",
-                      "a painting of a woman with long red hair wearing blue dress is on a horse",
-                      "a painting of a man playing with dog",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of a dog ride a horse", 
-                      "a painting of a dog ride a horse", 
-                      "a black and white photo of a soldier ride a horse", 
-                      "a painting of a river with a boat in the water",
-                      "a painting of a woman in a blue jacket",
-                      "a painting of three apples and two pears on a red background",
-                      "a drawing of three apples and two pears on a red background",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of a man and woman in a room",
-                      "a painting of a man and woman in a room",
-                      "a painting of a man in a car",
-                      "a drawing of two women sitting at a table",
-                      "a painting of the sun between two mountains and a house next to the river flowing between the mountains",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of the sun between two mountains and a house next to the river flowing between the mountains",
-                      
-                      ]
+                      random.sample(dataset.class_names, 5)
+                    ]
 VARIANT = None
+
+
 
 TRACKER_CONFIG = {
     "ADAM_BETA1": ADAM_BETA1,
@@ -202,41 +235,6 @@ TRACKER_CONFIG = {
     "VARIANT": VARIANT
 }
 
-### START OF NEW DATASET LOADER ### I added Pytorch dataset codes instead of  Huggingface dataset 
-
-from torch.utils.data import Dataset
-
-class CustomDataset(Dataset):
-    def __init__(self, dataframe, transform=None):
-        self.dataframe = dataframe
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.dataframe)
-
-    def __getitem__(self, idx):
-        row = self.dataframe.iloc[idx]
-        text = f"{row['eng_author']} {row['gpt_description']}"
-        text = row['gpt_description']
-        
-        image_path = os.path.join(TRAIN_DATA_DIR, row['filename'])
-        image = Image.open(image_path)
-        image_array = np.array(image)
-
-        # NaN değerlerini kontrol etme
-        has_nan = np.isnan(image_array).any()
-
-        if has_nan:
-            print(image_path)
-            raise ValueError("NaN value found in the image.")
-
-        if self.transform:
-            image = self.transform(image)
-
-        return {"input_ids": text, "pixel_values": image}
-
-
-dataset = CustomDataset(df, )
 
 ### END OF NEW DATASET LOADER ###
 
@@ -588,8 +586,8 @@ def main():
     # download the dataset.
 
     global CustomDataset
-    global df
-    dataset = CustomDataset(df, )
+    
+   
     # Preprocessing the datasets.
     # We need to tokenize input captions and transform the images.
     def tokenize_captions(examples, is_train=True):

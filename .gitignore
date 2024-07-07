@@ -1,5 +1,6 @@
 /Datasets
-/sd
-/stable-diffusion-2-finetuned
-/stable-diffusion-2-base-bf16-dream-finetuned
 /wandb
+/stabilityai
+
+/stable-diffusion-2-1-base-bf16-dream-finetuned
+/stable-diffusion-2-1-base-bf16-v_predicyion-data-augmentation-mushroom

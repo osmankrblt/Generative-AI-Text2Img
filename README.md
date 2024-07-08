@@ -60,10 +60,14 @@ cd Generative-AI-Text2Img
 <p>Follow these steps to train the model and generate images:</p>
 <ol>
     <li><strong>Data Preparation</strong>: Prepare your dataset containing text-image pairs and place it in a suitable directory.</li>
-    <li><strong>Model Training</strong>: Edit and Run <code>trainCustomDataset.py</code> to train the model:
-    </li>
-  
+    <li><strong>Model Training</strong>: Edit and run <code>trainCustomDataset.py</code> to train the model:
+    <pre><code>python trainCustomDataset.py --data_path path/to/dataset --output_dir path/to/save/model
+    </code></pre></li>
+    <li><strong>Image Generation</strong>: Use the trained model to generate images from text by running <code>generate.py</code>:
+    <pre><code>python generate.py --model_path path/to/saved/model --text "Your text to generate image"
+    </code></pre></li>
 </ol>
+<p>Note: This project is inspired by and uses code from the <a href="https://github.com/huggingface/diffusers/blob/main/examples/text_to_image/train_text_to_image.py">Hugging Face Diffusers text-to-image example</a>.</p>
 
 <h2 id="contributing">Contributing</h2>
 <p>Contributions are welcome! Please follow these steps to contribute:</p>

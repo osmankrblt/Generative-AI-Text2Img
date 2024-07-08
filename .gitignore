@@ -1,6 +1,11 @@
 /Datasets
 /wandb
 /stabilityai
+/myModel
+
 
 /stable-diffusion-2-1-base-bf16-dream-finetuned
 /stable-diffusion-2-1-base-bf16-v_predicyion-data-augmentation-mushroom
+
+trainCustomDatasetMy.py
+trainDatasetGenerator.py

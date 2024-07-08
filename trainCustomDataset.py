@@ -63,7 +63,7 @@ from PIL import Image
 import pandas as pd
 
 
-csv_file = "./Datasets/Russian Paintings/description.csv"
+csv_file = ""
 df = pd.read_csv(csv_file)
 
 DATASET_LENGTH = len(df)
@@ -75,7 +75,7 @@ ADAM_EPSILON = 1e-08
 ADAM_WEIGHT_DECAY = 1e-2
 ALLOW_TF32 = True
 BATCH_SIZE = 16
-CAPTION_COLUMN="gpt_description"
+CAPTION_COLUMN=""
 CENTER_CROP = True
 CHECKPOINTS_TOTAL_LIMIT = 3
 DATA_FILES = ""
@@ -103,9 +103,9 @@ NON_EMA_REVISION = None
 NOISE_OFFSET = 0
 NUM_TRAIN_EPOCHS = 1000
 OFFLOAD_EMA = False
-OUTPUT_DIR = "stable-diffusion-2-1-base-bf16-dream-finetuned"
+OUTPUT_DIR = ""
 PREDICTION_TYPE = "epsilon"
-PRETRAINED_MODEL_NAME_OR_PATH = "./stabilityai/stable-diffusion-2-1-base"
+PRETRAINED_MODEL_NAME_OR_PATH = ""
 RANDOM_FLIP = True
 REPORT_TO = "wandb"
 RESUME_FROM_CHECKPOINT = "latest"
@@ -116,34 +116,13 @@ SEED = BATCH_SIZE*2
 SNR_GAMMA = 5.0
 TRAIN_BATCH_SIZE = BATCH_SIZE
 CHECKPOINTING_STEPS = (DATASET_LENGTH//BATCH_SIZE)*3
-TRAIN_DATA_DIR = "./Datasets/Russian Paintings/"
+TRAIN_DATA_DIR = ""
 TRACKER_PROJECT_NAME = "text2image-fine-tune"
 USE_8BIT_ADAM = True
 USE_EMA = True
 VALIDATION_EPOCHS = 1
 VALIDATION_PROMPTS = [
-                      "a painting of two nude women on black background",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of two nude women on black background",
-                      "a drawing of two nude women on black background",
-                      "a painting of a nude man on red background",
-                      "a painting of a man standing on bridge",
-                      "a painting of a woman with long red hair wearing blue dress is on a horse",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of a woman with long red hair wearing blue dress is on a horse",
-                      "a painting of a woman with long red hair wearing blue dress is on a horse",
-                      "a painting of a man playing with dog",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of a dog ride a horse", 
-                      "a painting of a dog ride a horse", 
-                      "a black and white photo of a soldier ride a horse", 
-                      "a painting of a river with a boat in the water",
-                      "a painting of a woman in a blue jacket",
-                      "a painting of three apples and two pears on a red background",
-                      "a drawing of three apples and two pears on a red background",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of a man and woman in a room",
-                      "a painting of a man and woman in a room",
-                      "a painting of a man in a car",
-                      "a drawing of two women sitting at a table",
-                      "a painting of the sun between two mountains and a house next to the river flowing between the mountains",
-                      "HIGH QUALITY, 8K, HIGH DETAILS, a painting of the sun between two mountains and a house next to the river flowing between the mountains",
+                      
                       
                       ]
 VARIANT = None
@@ -153,10 +132,8 @@ TRACKER_CONFIG = {
     "ADAM_BETA2": ADAM_BETA2,
     "ADAM_EPSILON": ADAM_EPSILON,
     "ADAM_WEIGHT_DECAY": ADAM_WEIGHT_DECAY,
-
     "ALLOW_TF32": ALLOW_TF32,
     "BATCH_SIZE":BATCH_SIZE,
-
     "CENTER_CROP": CENTER_CROP,
     "CHECKPOINTING_STEPS": CHECKPOINTING_STEPS,
     "CHECKPOINTS_TOTAL_LIMIT": CHECKPOINTS_TOTAL_LIMIT,
@@ -216,7 +193,7 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.dataframe.iloc[idx]
-        text = f"{row['eng_author']} {row['gpt_description']}"
+        
         text = row['gpt_description']
         
         image_path = os.path.join(TRAIN_DATA_DIR, row['filename'])

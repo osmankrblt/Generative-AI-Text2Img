@@ -75,8 +75,9 @@ class CustomDataset(Dataset):
 
         self.images = []
         self.labels = []
-        self.parts = ["train", "val", "test"]
-        self.class_names = os.listdir(self.datadir+"/train")
+        self.parts = [ "val","test"]
+        self.class_names = os.listdir(self.datadir+f"/{self.parts[0]}")
+    
 
         for part in self.parts:
 
@@ -90,32 +91,42 @@ class CustomDataset(Dataset):
 
                     self.images.append(os.path.join(classPath, image))
                     self.labels.append(class_name)
+        
+      
+        
+
+       
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
-    
-        text = self.labels[idx]
+        try:
+            text = self.labels[idx]
+            
+            image_path = self.images[idx]
+            image = Image.open(image_path)
+            image_array = np.array(image)
+
+            # NaN değerlerini kontrol etme
+            has_nan = np.isnan(image_array).any()
+
+            if has_nan:
+                print(image_path)
+                raise ValueError("NaN value found in the image.")
+
+            if self.transform:
+                image = self.transform(image)
+
+            return {"input_ids": text, "pixel_values": image}
         
-        image_path = self.images[idx]
-        image = Image.open(image_path)
-        image_array = np.array(image)
+        except Exception as e:
 
-        # NaN değerlerini kontrol etme
-        has_nan = np.isnan(image_array).any()
-
-        if has_nan:
-            print(image_path)
-            raise ValueError("NaN value found in the image.")
-
-        if self.transform:
-            image = self.transform(image)
-
-        return {"input_ids": text, "pixel_values": image}
+            self.__getitem__(idx+1)
 
 
 TRAIN_DATA_DIR = "/media/hosma/CommonDisk/Mushroom Classifier/Datasets/FungiCLEF 2023V2/"
+TRAIN_DATA_DIR = "/media/hosma/CommonDisk/Mushroom Classifier/Train/Mushroom RussiaV4/"
 
 dataset = CustomDataset(TRAIN_DATA_DIR)
 
@@ -128,7 +139,7 @@ ADAM_BETA2 = 0.999
 ADAM_EPSILON = 1e-08
 ADAM_WEIGHT_DECAY = 1e-2
 ALLOW_TF32 = True
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 CAPTION_COLUMN="gpt_description"
 CENTER_CROP = True
 CHECKPOINTS_TOTAL_LIMIT = 3
@@ -145,6 +156,7 @@ GRADIENT_CHECKPOINTING = True
 INPUT_PERTURBATION=""
 IMAGE_COLUMN="filename"
 LEARNING_RATE = 0.0000032
+LEARNING_RATE = 1e-4
 LOGGING_DIR = "LOGGING"
 LR_WARMUP_STEPS = (DATASET_LENGTH//BATCH_SIZE)*0.1
 LR_WARMUP_STEPS = 0
@@ -169,14 +181,13 @@ SCALE_LR = True
 SEED = BATCH_SIZE*2
 SNR_GAMMA = 5.0
 TRAIN_BATCH_SIZE = BATCH_SIZE
-CHECKPOINTING_STEPS = (DATASET_LENGTH//BATCH_SIZE)*1
+CHECKPOINTING_STEPS = (DATASET_LENGTH//BATCH_SIZE)*5
 TRACKER_PROJECT_NAME = "text2image-data-augmentation-mushroom"
 USE_8BIT_ADAM = True
 USE_EMA = True
 VALIDATION_EPOCHS = 1
-VALIDATION_PROMPTS = [
-                      random.sample(dataset.class_names, 5)
-                    ]
+VALIDATION_PROMPTS = random.sample(dataset.class_names, 16)
+                    
 VARIANT = None
 
 
@@ -611,8 +622,9 @@ def main():
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
         [   
-            transforms.Resize(RESOLUTION, interpolation=transforms.InterpolationMode.BILINEAR),
-            transforms.CenterCrop(RESOLUTION) if CENTER_CROP else transforms.RandomCrop(RESOLUTION),
+            #transforms.Resize(RESOLUTION, interpolation=transforms.InterpolationMode.BILINEAR),
+            transforms.Resize((RESOLUTION,RESOLUTION), interpolation=transforms.InterpolationMode.BILINEAR),
+            #transforms.CenterCrop(RESOLUTION) if CENTER_CROP else transforms.RandomCrop(RESOLUTION),
             transforms.RandomHorizontalFlip() if RANDOM_FLIP else transforms.Lambda(lambda x: x),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -651,6 +663,7 @@ def main():
         collate_fn=collate_fn,
         batch_size=TRAIN_BATCH_SIZE,
         num_workers=DATALOADER_NUM_WORKERS,
+        pin_memory=True
     )
 
     # Scheduler and math around the number of training steps.

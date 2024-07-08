@@ -60,7 +60,7 @@ cd Generative-AI-Text2Img
 <p>Follow these steps to train the model and generate images:</p>
 <ol>
     <li><strong>Data Preparation</strong>: Prepare your dataset containing text-image pairs and place it in a suitable directory.</li>
-    <li><strong>Model Training</strong>: Edit and Run <code>train.py</code> to train the model:
+    <li><strong>Model Training</strong>: Edit and Run <code>trainCustomDataset.py</code> to train the model:
     </li>
   
 </ol>
